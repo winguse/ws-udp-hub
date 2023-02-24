@@ -27,6 +27,9 @@ jobs:
     - name: Build
       run: go build -v .
 
+    - name: Test
+      run: go test -v ./...
+
     - name: Release
       run: make gh-actions
       if: startsWith(github.ref, 'refs/tags/')

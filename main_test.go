@@ -40,6 +40,8 @@ func TestItWorks(t *testing.T) {
 	connA := dailHelper(t, localDestinationStrA, localSrcAddrStrA)
 	connB := dailHelper(t, localDestinationStrB, localSrcAddrStrB)
 
+	time.Sleep(time.Second * 1)
+
 	_, err := connA.Write([]byte("hello world"))
 	assert.NilError(t, err)
 	buffer := make([]byte, bufferSize)

@@ -8,6 +8,7 @@ GOBUILD=CGO_ENABLED=0 go build -ldflags '-X "github.com/winguse/$(NAME)/constant
 
 PLATFORM_LIST = \
 	darwin-amd64 \
+	darwin-arm64 \
 	linux-386 \
 	linux-amd64 \
 	linux-armv5 \
@@ -30,6 +31,9 @@ WINDOWS_ARCH_LIST = \
 all: linux-amd64 darwin-amd64 windows-amd64 # Most used
 
 darwin-amd64:
+	GOARCH=amd64 GOOS=darwin $(GOBUILD) -o $(BINDIR)/$(NAME)-$@
+
+darwin-arm64:
 	GOARCH=amd64 GOOS=darwin $(GOBUILD) -o $(BINDIR)/$(NAME)-$@
 
 linux-386:
