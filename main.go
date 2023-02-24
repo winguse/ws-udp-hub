@@ -41,6 +41,7 @@ func server(serverPath, serverBindAddrStr string, bufferSize int, timeout time.D
 	http.Handle(serverPath, websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
 		log.Printf("got ws connection")
+		defer log.Printf("ws connection ended")
 		data := make([]byte, bufferSize)
 		n, err := ws.Read(data)
 		if err != nil {
@@ -77,7 +78,7 @@ func server(serverPath, serverBindAddrStr string, bufferSize int, timeout time.D
 	}
 }
 
-func client(serverWsUrl, localSrcAddrStr, localDestinationStr, sessionKey string, timeout time.Duration) {
+func client(serverWsUrl, localSrcAddrStr, localDestinationStr, sessionKey string, bufferSize int, timeout time.Duration) {
 	localSrcAddr, err := net.ResolveUDPAddr("udp", localSrcAddrStr)
 	if err != nil {
 		log.Printf("failed to parse local source addr %s", err)
@@ -116,7 +117,7 @@ func client(serverWsUrl, localSrcAddrStr, localDestinationStr, sessionKey string
 	// client -> server
 	go func() {
 		defer setDone()
-		data := make([]byte, *bufferSize)
+		data := make([]byte, bufferSize)
 		for !done {
 			var n int
 			ws.SetReadDeadline(time.Now().Add(timeout))
@@ -139,7 +140,7 @@ func client(serverWsUrl, localSrcAddrStr, localDestinationStr, sessionKey string
 	// server -> client
 	go func() {
 		defer setDone()
-		data := make([]byte, *bufferSize)
+		data := make([]byte, bufferSize)
 		for !done {
 			var n int
 			ws.SetReadDeadline(time.Now().Add(timeout))
