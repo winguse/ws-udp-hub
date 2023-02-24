@@ -12,15 +12,20 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+var bufferSize = flag.Int("buffer-size", 1600, "buffer size in bytes, the max UDP package size.")
 var timeout = flag.Int("timeout", 30, "session timeout in seconds")
+
+var clientMode = flag.Bool("client-mode", false, "running mode, default to false (server mode), set to true to run client mode")
 var restartSleep = flag.Int("restart-sleep", 3, "restart sleep in seconds")
 var verboseLogging = flag.Bool("verbose", false, "verbose logging")
-var bufferSize = flag.Int("buffer-size", 1600, "buffer size in bytes, the max UDP package size.")
 
-var clientMode = flag.Bool("client-mode", false, "running mode, true for client mode, false for server mode")
-
-var serverAddress = flag.String("server-address", "127.0.0.1:3000", "server listen address")
+var serverBindAddrStr = flag.String("server-bind", "127.0.0.1:30000", "server listen address")
 var serverPath = flag.String("server-path", "/path", "server websocket path")
+
+var serverWsUrl = flag.String("server-ws-url", "ws://127.0.0.1:30000/path", "server websocket url")
+var localSrcAddrStr = flag.String("local-src", "127.0.0.1:5000", "local source address")
+var localDestinationStr = flag.String("local-dst", "127.0.0.1:6000", "local destination address")
+var sessionKey = flag.String("session-key", "abcdef", "the session key tell the server to connect on server side, the peer connection should have session key reversed")
 
 func verbosePrintf(format string, v ...interface{}) {
 	if *verboseLogging {
@@ -165,9 +170,9 @@ func main() {
 	flag.Parse()
 	for {
 		if *clientMode {
-			// client()
+			client(*serverWsUrl, *localSrcAddrStr, *localDestinationStr, *sessionKey, *bufferSize, time.Duration(*timeout))
 		} else {
-			// server()
+			server(*serverPath, *serverBindAddrStr, *bufferSize, time.Duration(*timeout))
 		}
 		log.Printf("restarting in %d seconds...\n", *restartSleep)
 		time.Sleep(time.Duration(*restartSleep) * time.Second)
