@@ -170,9 +170,9 @@ func main() {
 	flag.Parse()
 	for {
 		if *clientMode {
-			client(*serverWsUrl, *localSrcAddrStr, *localDestinationStr, *sessionKey, *bufferSize, time.Duration(*timeout))
+			client(*serverWsUrl, *localSrcAddrStr, *localDestinationStr, *sessionKey, *bufferSize, time.Duration(*timeout)*time.Second)
 		} else {
-			server(*serverPath, *serverBindAddrStr, *bufferSize, time.Duration(*timeout))
+			server(*serverPath, *serverBindAddrStr, *bufferSize, time.Duration(*timeout)*time.Second)
 		}
 		log.Printf("restarting in %d seconds...\n", *restartSleep)
 		time.Sleep(time.Duration(*restartSleep) * time.Second)
