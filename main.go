@@ -12,11 +12,11 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-var bufferSize = flag.Int("buffer-size", 1600, "buffer size in bytes, the max UDP package size.")
-var timeout = flag.Int("timeout", 30, "session timeout in seconds")
+var bufferSize = flag.Int("buffer-size", 10240, "buffer size in bytes, the max UDP package size.")
+var timeout = flag.Int("timeout", 3600, "session timeout in seconds")
 
 var clientMode = flag.Bool("client-mode", false, "running mode, default to false (server mode), set to true to run client mode")
-var restartSleep = flag.Int("restart-sleep", 3, "restart sleep in seconds")
+var restartSleep = flag.Int("restart-sleep", 1, "restart sleep in seconds")
 var verboseLogging = flag.Bool("verbose", false, "verbose logging")
 
 var serverBindAddrStr = flag.String("server-bind", "127.0.0.1:30000", "server listen address")
@@ -45,8 +45,6 @@ func server(serverPath, serverBindAddrStr string, bufferSize int, timeout time.D
 	sessionMap := sync.Map{}
 	http.Handle(serverPath, websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
-		log.Printf("got ws connection")
-		defer log.Printf("ws connection ended")
 		data := make([]byte, bufferSize)
 		n, err := ws.Read(data)
 		if err != nil {
@@ -55,19 +53,24 @@ func server(serverPath, serverBindAddrStr string, bufferSize int, timeout time.D
 		}
 		sessionKey := string(data[:n])
 		reverseSessionKey := reverse(sessionKey)
+		log.Printf("got %s ws connection", sessionKey)
+		defer log.Printf("%s ws connection ended", sessionKey)
 
 		if previousWs, ok := sessionMap.Load(reverseSessionKey); ok {
+			log.Printf("closing %s\n", reverseSessionKey)
+			sessionMap.LoadOrStore(reverseSessionKey, ws)
 			previousWs.(*websocket.Conn).Close()
+		} else {
+			sessionMap.LoadOrStore(reverseSessionKey, ws)
 		}
 
-		sessionMap.LoadOrStore(reverseSessionKey, ws)
 		defer sessionMap.CompareAndDelete(reverseSessionKey, ws)
 
 		for {
 			ws.SetReadDeadline(time.Now().Add(timeout))
 			n, err := ws.Read(data)
 			if err != nil {
-				log.Printf("error during ws read: %s\n", err)
+				log.Printf("error during ws read: %s for %s\n", err, sessionKey)
 				break
 			}
 			if wsWrite, ok := sessionMap.Load(sessionKey); ok {
@@ -75,6 +78,8 @@ func server(serverPath, serverBindAddrStr string, bufferSize int, timeout time.D
 					log.Printf("error during ws write: %s\n", err)
 					break
 				}
+			} else {
+				log.Printf("cannot find ws for %s\n", sessionKey)
 			}
 		}
 	}))
@@ -122,11 +127,11 @@ func client(serverWsUrl, localSrcAddrStr, localDestinationStr, sessionKey string
 	// client -> server
 	go func() {
 		defer setDone()
+		defer log.Printf("client -> server ended")
 		data := make([]byte, bufferSize)
 		for !done {
-			var n int
 			ws.SetReadDeadline(time.Now().Add(timeout))
-			n, err = localConn.Read(data)
+			n, err := localConn.Read(data)
 			if err != nil {
 				log.Printf("error during read: %s\n", err)
 				break
@@ -145,11 +150,11 @@ func client(serverWsUrl, localSrcAddrStr, localDestinationStr, sessionKey string
 	// server -> client
 	go func() {
 		defer setDone()
+		defer log.Printf("server -> client ended")
 		data := make([]byte, bufferSize)
 		for !done {
-			var n int
 			ws.SetReadDeadline(time.Now().Add(timeout))
-			n, err = ws.Read(data)
+			n, err := ws.Read(data)
 			if err != nil {
 				log.Printf("error during ws read: %s\n", err)
 				break
@@ -158,7 +163,10 @@ func client(serverWsUrl, localSrcAddrStr, localDestinationStr, sessionKey string
 				break
 			}
 			verbosePrintf("server -> client, size: %d\n", n)
-			localConn.Write(data[:n])
+			if _, err := localConn.Write(data[:n]); err != nil {
+				log.Printf("error send data to local conn: %s\n", err)
+				break
+			}
 		}
 	}()
 
