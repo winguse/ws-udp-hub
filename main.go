@@ -74,7 +74,9 @@ func server(serverPath, serverBindAddrStr string, bufferSize int, timeout time.D
 				break
 			}
 			if wsWrite, ok := sessionMap.Load(sessionKey); ok {
-				if _, err = wsWrite.(*websocket.Conn).Write(data[:n]); err != nil {
+				writeConn := wsWrite.(*websocket.Conn)
+				writeConn.SetWriteDeadline(time.Now().Add(timeout))
+				if _, err = writeConn.Write(data[:n]); err != nil {
 					log.Printf("error during ws write: %s\n", err)
 					break
 				}
@@ -130,7 +132,6 @@ func client(serverWsUrl, localSrcAddrStr, localDestinationStr, sessionKey string
 		defer log.Printf("client -> server ended")
 		data := make([]byte, bufferSize)
 		for !done {
-			ws.SetReadDeadline(time.Now().Add(timeout))
 			n, err := localConn.Read(data)
 			if err != nil {
 				log.Printf("error during read: %s\n", err)
@@ -140,6 +141,7 @@ func client(serverWsUrl, localSrcAddrStr, localDestinationStr, sessionKey string
 				break
 			}
 			verbosePrintf("client -> server, size: %d\n", n)
+			ws.SetWriteDeadline(time.Now().Add(timeout))
 			if _, err := ws.Write(data[:n]); err != nil {
 				log.Printf("error send data to ws: %s\n", err)
 				break
